@@ -1,0 +1,71 @@
+############################################################
+# Global LF normalization
+############################################################
+* text=auto
+
+############################################################
+# Force LF for build scripts, config, and source files
+############################################################
+*.sh        text eol=lf
+*.bash      text eol=lf
+*.zsh       text eol=lf
+*.py        text eol=lf
+*.c         text eol=lf
+*.h         text eol=lf
+*.cpp       text eol=lf
+*.hpp       text eol=lf
+*.mk        text eol=lf
+Makefile    text eol=lf
+
+*.conf      text eol=lf
+*.ini       text eol=lf
+*.toml      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.txt       text eol=lf
+*.md        text eol=lf
+*.csv       text eol=lf
+
+############################################################
+# Preserve Windows CRLF where appropriate (if any)
+# (Add patterns here if you have files intended for Windows tools)
+############################################################
+# e.g. *.bat text eol=crlf
+# e.g. *.ps1 text eol=crlf
+
+############################################################
+# Prevent normalization for binary files
+############################################################
+*.png       -text
+*.jpg       -text
+*.jpeg      -text
+*.gif       -text
+*.ico       -text
+*.zip       -text
+*.gz        -text
+*.7z        -text
+*.tar       -text
+*.tgz       -text
+*.pdf       -text
+*.exe       -text
+*.dll       -text
+*.so        -text
+*.dylib     -text
+*.bin       -text
+
+############################################################
+# Security‑sensitive: do NOT apply LF normalization
+############################################################
+*.pem       -text
+*.key       -text
+*.crt       -text
+*.cer       -text
+certs/*     -text
+qkd_certs/* -text
+
+############################################################
+# Git filter-repo artifacts (do not normalize)
+############################################################
+.git-rewrite/ -text
+.git/filter-repo/ -text
