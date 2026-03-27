@@ -4,17 +4,28 @@ This document consolidates the remaining design areas: Configuration Management,
 
 ## 1. Configuration Management System
 
-### 1.1 Configuration Sources (Priority Order)
+### 1.1 Docker-Based Configuration Model
+
+**Configuration Strategy:**
+- Configuration file (`config/relay.toml`) mounted as read-only volume
+- Credentials stored in `.env` file, loaded as environment variables
+- Entrypoint script validates configuration before starting relay
+- Non-root user (UID 1000) for security
+
+### 1.2 Configuration Sources (Priority Order)
 
 1. **Command-line arguments** (highest priority)
-2. **Environment variables**
-3. **Configuration file** (TOML)
+2. **Environment variables** (from `.env` file in Docker)
+3. **Configuration file** (`config/relay.toml` - mounted read-only)
 4. **Default values** (lowest priority)
 
-### 1.2 Configuration File Structure
+**Security Note:** Credentials MUST be in environment variables, never in config files.
+
+### 1.3 Configuration File Structure
 
 ```toml
 # config/relay.toml
+# This file is mounted read-only in Docker container at /config/relay.toml
 
 [relay]
 # Operational mode
@@ -39,29 +50,30 @@ request_timeout = 30
 connection_pool_size = 10
 
 [gcm.auth]
-# Authentication credentials (prefer environment variables)
-username = ""  # Override with GCM_USERNAME
-password = ""  # Override with GCM_PASSWORD
-client_id = "gcmclient"
-client_secret = ""  # Override with GCM_CLIENT_SECRET
+# Authentication credentials - MUST be set via environment variables
+# SECURITY: Never commit credentials to this file
+username = ""  # Set via GCM_USERNAME (REQUIRED)
+password = ""  # Set via GCM_PASSWORD (REQUIRED)
+client_id = "gcmclient"  # Can override with GCM_CLIENT_ID
+client_secret = ""  # Set via GCM_CLIENT_SECRET (REQUIRED)
 auth_mode = "auto"  # "auto", "oauth2", "browser"
 
 [gcm.oidc]
 # OIDC Provider (Keycloak) settings
-host = "gcm.example.com"
+host = ""  # Optional: separate OIDC host, or use GCM host
 port = 30443
-realm = "gcmrealm"
+realm = "master"
 
 [policy]
 # Policy configuration
-config_file = "config/tools.yaml"
+config_file = "/config/policy.yaml"  # Mounted in Docker
 enable_rate_limiting = true
 enable_restrictions = true
 
 [audit]
 # Audit logging
 enabled = true
-log_file = "logs/audit.jsonl"
+log_file = "/logs/audit.jsonl"  # Mounted volume in Docker
 log_format = "json"  # "json" or "text"
 log_rotation = "daily"  # "daily", "weekly", "size"
 max_file_size_mb = 100
@@ -73,11 +85,51 @@ include_results = false  # Don't log full results (may be large)
 # Application logging
 level = "INFO"
 format = "structured"  # "structured" or "simple"
-output = "stdout"  # "stdout", "file", "both"
-file = "logs/relay.log"
+output = "stdout"  # "stdout" for Docker logs
+file = "/logs/relay.log"  # Optional: file logging
 ```
 
-### 1.3 Configuration Loader Implementation
+### 1.4 Environment Variables (.env file)
+
+```bash
+# .env - Docker environment variables
+# SECURITY: This file is gitignored and should never be committed
+
+# ============================================================
+# GCM Server Configuration
+# ============================================================
+GCM_HOST=gcm.example.com
+GCM_API_PORT=31443
+
+# ============================================================
+# OIDC Provider (Keycloak) Configuration
+# ============================================================
+GCM_OIDC_PORT=30443
+# GCM_OIDC_HOST=keycloak.example.com  # Optional: if different from GCM_HOST
+
+# ============================================================
+# Authentication Credentials (REQUIRED)
+# ============================================================
+GCM_USERNAME=your-username
+GCM_PASSWORD=your-password
+GCM_CLIENT_SECRET=your-client-secret
+
+# ============================================================
+# Optional Configuration Overrides
+# ============================================================
+GCM_CLIENT_ID=gcmclient
+GCM_AUTH_MODE=auto
+GCM_VERIFY_SSL=false
+GCM_REQUEST_TIMEOUT=30
+GCM_LOG_LEVEL=INFO
+
+# ============================================================
+# Relay Configuration
+# ============================================================
+GCM_RELAY_PROFILE=readonly  # readonly, ops, admin
+```
+
+### 1.5 Configuration Loader Implementation
 
 ```python
 from pydantic import BaseModel, Field

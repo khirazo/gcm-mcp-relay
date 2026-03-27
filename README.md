@@ -1,6 +1,6 @@
 # GCM MCP Relay
 
-A secure relay service that sits between AI coding agents and IBM Guardium Cryptography Manager's built-in MCP server, providing simplified authentication, policy-based access control, and audit logging.
+A secure, Docker-based relay service that sits between AI coding agents and IBM Guardium Cryptography Manager's built-in MCP server, providing simplified authentication, policy-based access control, and audit logging.
 
 ## Overview
 
@@ -12,40 +12,47 @@ IBM Guardium Cryptography Manager (GCM) 2.0.1 includes a built-in MCP server wit
 
 **GCM MCP Relay** solves these problems by:
 
-- ✅ Handling authentication transparently
-- ✅ Enforcing profile-based access control
-- ✅ Providing comprehensive audit logging
-- ✅ Supporting both local (stdio) and remote (HTTP) modes
-- ✅ Enabling safe AI agent integration
+- ✅ **Docker-first deployment**: Containerized for consistent, portable deployment
+- ✅ **Transparent authentication**: Handles OAuth2/OIDC flow automatically
+- ✅ **Profile-based access control**: readonly/ops/admin profiles
+- ✅ **Comprehensive audit logging**: All tool invocations logged
+- ✅ **Dual transport modes**: stdio (local) and HTTP (remote)
+- ✅ **Safe AI integration**: Selective tool exposure with policy enforcement
 
 ## Architecture
 
 ```
-AI Coding Agent
- ├─ stdio MCP (no auth)      [local / dev]
- └─ HTTP MCP (OIDC token)    [remote / production]
-            │
-            ▼
-        MCP Relay
-        - Authentication management
-        - Policy enforcement
-        - Tool abstraction
-        - Audit logging
-            │
-            ▼
-      GCM Built-in MCP Server
-      (streamable-http + JWT)
+┌──────────────────────────────────────────────────────────────┐
+│                  PC / Laptop (Docker Host)                    │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │         AI Coding Agent (IBM Bob / Cursor)             │  │
+│  └────────────────────────┬───────────────────────────────┘  │
+│                           │ stdio                             │
+│  ┌────────────────────────▼───────────────────────────────┐  │
+│  │       Docker Container: GCM MCP Relay                  │  │
+│  │  - Authentication management                           │  │
+│  │  - Policy enforcement                                  │  │
+│  │  - Tool abstraction                                    │  │
+│  │  - Audit logging                                       │  │
+│  └────────────────────────┬───────────────────────────────┘  │
+└────────────────────────────┼─────────────────────────────────┘
+                             │ HTTPS + Bearer JWT
+┌────────────────────────────▼─────────────────────────────────┐
+│          GCM Built-in MCP Server                              │
+│          (streamable-http, 26 tools)                          │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ## Features
 
-### Phase 1 (Current)
+### Phase 1 (Design Complete)
+- ✅ **Docker deployment**: Multi-stage build, non-root user, minimal image
 - ✅ **stdio mode**: Local development with AI coding agents
 - ✅ **Authentication**: Automatic OAuth2/OIDC token management
 - ✅ **Policy Engine**: Profile-based access control (readonly/ops/admin)
 - ✅ **Tool Filtering**: Selective exposure of GCM tools
-- ✅ **Audit Logging**: Comprehensive structured logging
-- ✅ **Configuration**: YAML/TOML-based configuration
+- ✅ **Audit Logging**: Comprehensive structured logging (JSONL)
+- ✅ **Configuration**: TOML config + environment variables
 
 ### Phase 2 (Planned)
 - 🔄 **HTTP mode**: Remote access with OIDC refresh tokens
@@ -54,49 +61,119 @@ AI Coding Agent
 - 🔄 **Metrics**: Prometheus-compatible metrics
 - 🔄 **Tool Abstraction**: Logical tools combining multiple GCM tools
 
-## Quick Start
+## 🚀 Quick Start (Docker)
 
 ### Prerequisites
 
-- Python 3.11+
-- Access to IBM Guardium Cryptography Manager 2.0.1+
-- GCM credentials (username, password, client secret)
+- **Docker Desktop** (or Docker Engine + Docker Compose)
+- **IBM Bob** or other MCP client
+- **GCM credentials** (username, password, client secret)
+- **Git** (for cloning the repository)
 
-### Installation
+### Setup (3 Steps)
+
+#### Step 1: Clone and Configure
 
 ```bash
-# Clone repository
+# Clone the repository
 git clone <repository-url>
 cd gcm-mcp-relay
 
+# Copy environment template
+cp .env.example .env
+
+# Edit .env with your GCM credentials
+# Use your preferred text editor (nano, vim, notepad, etc.)
+nano .env
+```
+
+**Required values in `.env`:**
+```bash
+GCM_HOST=your-gcm-server.example.com
+GCM_USERNAME=your-username
+GCM_PASSWORD=your-password
+GCM_CLIENT_SECRET=your-client-secret
+```
+
+**Optional:** Edit `config/relay.toml` for non-sensitive settings (ports, log level, etc.)
+
+#### Step 2: Build Container
+
+```bash
+# Build the Docker image
+docker compose build
+
+# Verify the build
+docker images | grep gcm-mcp-relay
+```
+
+Expected output:
+```
+gcm-mcp-relay:stdio    latest    241MB
+```
+
+#### Step 3: Configure IBM Bob
+
+Add the GCM MCP Relay to IBM Bob's configuration file.
+
+**Location of Bob's config file:**
+- **Windows**: `%USERPROFILE%\.bob\settings\mcp_settings.json`
+- **macOS/Linux**: `~/.bob/settings/mcp_settings.json`
+
+**Configuration:**
+
+```json
+{
+  "mcpServers": {
+    "gcm-mcp-relay": {
+      "command": "docker",
+      "args": [
+        "compose",
+        "run",
+        "--rm",
+        "gcm-mcp-relay"
+      ],
+      "cwd": "/absolute/path/to/gcm-mcp-relay",
+      "env": {}
+    }
+  }
+}
+```
+
+**Restart IBM Bob** to load the new configuration.
+
+### Verification
+
+```bash
+# Test relay startup
+docker compose run --rm gcm-mcp-relay
+
+# Check logs
+docker compose logs gcm-mcp-relay
+
+# Verify configuration
+docker compose config
+```
+
+## Alternative: Native Python Installation
+
+If you prefer to run without Docker:
+
+```bash
 # Create virtual environment
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
-pip install -e .
-```
 
-### Configuration
-
-```bash
-# Copy example configurations
-cp config/relay.example.toml config/relay.toml
-cp config/tools.example.yaml config/tools.yaml
-
-# Edit config/relay.toml with your GCM settings
-# Set credentials via environment variables (recommended)
+# Set environment variables
 export GCM_USERNAME="your-username"
 export GCM_PASSWORD="your-password"
 export GCM_CLIENT_SECRET="your-client-secret"
-```
 
-### Running
-
-```bash
-# stdio mode (for local AI agents)
-python -m gcm_relay --mode stdio
+# Run relay
+python -m src --mode stdio
 
 # With custom config
 python -m gcm_relay --mode stdio --config config/relay.toml
@@ -121,6 +198,16 @@ python -m gcm_relay --mode stdio --config config/relay.toml
   }
 }
 ```
+
+## 📚 Documentation
+
+- **[Architecture Design](docs/architecture.md)** - System architecture and component design
+- **[Docker Deployment](docs/docker-deployment.md)** - Complete Docker deployment guide
+- **[Implementation Guide](docs/implementation-guide.md)** - Configuration, logging, and error handling
+- **[Authentication Design](docs/authentication-design.md)** - OAuth2/OIDC authentication flows
+- **[Tool Abstraction Design](docs/tool-abstraction-design.md)** - Tool classification and exposure
+- **[Policy Engine Design](docs/policy-engine-design.md)** - Access control and policy enforcement
+- **[Project Structure](docs/project-structure.md)** - Directory layout and file organization
 
 ## Configuration
 

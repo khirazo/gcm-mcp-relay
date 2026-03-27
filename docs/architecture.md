@@ -6,6 +6,7 @@ GCM MCP Relay is a secure relay service that sits between AI coding agents and I
 
 ### Design Principles
 
+- **Docker-First Deployment**: Containerized for consistent, portable deployment
 - **Phased Implementation**: Phase 1 (stdio mode), Phase 2 (HTTP mode)
 - **Selective Exposure**: Safe read-only tools directly exposed, dangerous tools restricted
 - **Configuration-Driven**: Policy changes without code modifications
@@ -16,54 +17,62 @@ GCM MCP Relay is a secure relay service that sits between AI coding agents and I
 ### 2.1 High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     AI Coding Agent                          │
-│              (Cursor / Claude Desktop / etc.)                │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         │ stdio (Phase 1)
-                         │ HTTP + OIDC Refresh Token (Phase 2)
-                         │
-┌────────────────────────▼────────────────────────────────────┐
-│                   GCM MCP Relay                              │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │  MCP Server Layer (stdio / HTTP)                     │   │
-│  └──────────────────────┬───────────────────────────────┘   │
-│  ┌──────────────────────▼───────────────────────────────┐   │
-│  │  Tool Facade Layer                                   │   │
-│  │  - Tool mapping & abstraction                        │   │
-│  │  - Schema transformation                             │   │
-│  └──────────────────────┬───────────────────────────────┘   │
-│  ┌──────────────────────▼───────────────────────────────┐   │
-│  │  Policy Engine                                       │   │
-│  │  - Tool allowlist enforcement                        │   │
-│  │  - Profile-based access control                      │   │
-│  │  - Argument validation                               │   │
-│  └──────────────────────┬───────────────────────────────┘   │
-│  ┌──────────────────────▼───────────────────────────────┐   │
-│  │  Authentication Manager                              │   │
-│  │  - OAuth2/OIDC token management                      │   │
-│  │  - Token caching & refresh                           │   │
-│  │  - Credential storage (stdio mode)                   │   │
-│  └──────────────────────┬───────────────────────────────┘   │
-│  ┌──────────────────────▼───────────────────────────────┐   │
-│  │  Audit Logger                                        │   │
-│  │  - Tool invocation logging                           │   │
-│  │  - Security event tracking                           │   │
-│  └──────────────────────┬───────────────────────────────┘   │
-│  ┌──────────────────────▼───────────────────────────────┐   │
-│  │  GCM MCP Client                                      │   │
-│  │  - streamable-http transport                         │   │
-│  │  - Bearer JWT authentication                         │   │
-│  └──────────────────────┬───────────────────────────────┘   │
-└─────────────────────────┼───────────────────────────────────┘
-                          │
-                          │ HTTPS + Bearer JWT
-                          │
-┌─────────────────────────▼───────────────────────────────────┐
-│          GCM Built-in MCP Server                             │
-│          (streamable-http, 26 tools)                         │
-└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                  PC / Laptop (Docker Host)                    │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │              AI Coding Agent                           │  │
+│  │       (Cursor / Claude Desktop / IBM Bob)              │  │
+│  └────────────────────────┬───────────────────────────────┘  │
+│                           │                                   │
+│                           │ stdio (Phase 1)                   │
+│                           │ HTTP + OIDC Refresh Token (Phase 2)│
+│                           │                                   │
+│  ┌────────────────────────▼───────────────────────────────┐  │
+│  │          Docker Container: GCM MCP Relay               │  │
+│  │  ┌──────────────────────────────────────────────────┐  │  │
+│  │  │  MCP Server Layer (stdio / HTTP)                 │  │  │
+│  │  └──────────────────────┬───────────────────────────┘  │  │
+│  │  ┌──────────────────────▼───────────────────────────┐  │  │
+│  │  │  Tool Facade Layer                               │  │  │
+│  │  │  - Tool mapping & abstraction                    │  │  │
+│  │  │  - Schema transformation                         │  │  │
+│  │  └──────────────────────┬───────────────────────────┘  │  │
+│  │  ┌──────────────────────▼───────────────────────────┐  │  │
+│  │  │  Policy Engine                                   │  │  │
+│  │  │  - Tool allowlist enforcement                    │  │  │
+│  │  │  - Profile-based access control                  │  │  │
+│  │  │  - Argument validation                           │  │  │
+│  │  └──────────────────────┬───────────────────────────┘  │  │
+│  │  ┌──────────────────────▼───────────────────────────┐  │  │
+│  │  │  Authentication Manager                          │  │  │
+│  │  │  - OAuth2/OIDC token management                  │  │  │
+│  │  │  - Token caching & refresh                       │  │  │
+│  │  │  - Credential storage (stdio mode)               │  │  │
+│  │  └──────────────────────┬───────────────────────────┘  │  │
+│  │  ┌──────────────────────▼───────────────────────────┐  │  │
+│  │  │  Audit Logger                                    │  │  │
+│  │  │  - Tool invocation logging                       │  │  │
+│  │  │  - Security event tracking                       │  │  │
+│  │  └──────────────────────┬───────────────────────────┘  │  │
+│  │  ┌──────────────────────▼───────────────────────────┐  │  │
+│  │  │  GCM MCP Client                                  │  │  │
+│  │  │  - streamable-http transport                     │  │  │
+│  │  │  - Bearer JWT authentication                     │  │  │
+│  │  └──────────────────────┬───────────────────────────┘  │  │
+│  │                         │                              │  │
+│  │  Volumes:               │                              │  │
+│  │  - config.toml (ro)     │                              │  │
+│  │  - policy.yaml (ro)     │                              │  │
+│  │  - audit logs           │                              │  │
+│  └─────────────────────────┼──────────────────────────────┘  │
+└────────────────────────────┼─────────────────────────────────┘
+                             │
+                             │ HTTPS + Bearer JWT
+                             │
+┌────────────────────────────▼─────────────────────────────────┐
+│          GCM Built-in MCP Server                              │
+│          (streamable-http, 26 tools)                          │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ### 2.2 Component Responsibilities
@@ -170,24 +179,44 @@ Phase 2+: Add abstraction layer if needed.
 
 ### 4.1 stdio Mode Authentication (Phase 1)
 
+**Docker Deployment Model:**
+- Credentials stored in `.env` file (gitignored)
+- Mounted as environment variables in container
+- Configuration file (`config.toml`) mounted read-only
+- Relay process runs as non-root user (UID 1000)
+
 ```
-┌─────────────┐
-│ Relay Start │
-└──────┬──────┘
+┌─────────────────────────────┐
+│ Docker Container Start      │
+│ (entrypoint.sh)             │
+└──────┬──────────────────────┘
        │
        ▼
 ┌─────────────────────────────────┐
-│ Load credentials from:          │
-│ 1. Environment variables        │
-│ 2. Config file (config.toml)    │
-│ 3. .env file                    │
+│ Load configuration:             │
+│ 1. config.toml (mounted ro)     │
+│ 2. Environment variables (.env) │
 └──────┬──────────────────────────┘
        │
        ▼
 ┌─────────────────────────────────┐
-│ Authenticate to GCM:            │
+│ Validate required credentials:  │
+│ - GCM_USERNAME                  │
+│ - GCM_PASSWORD                  │
+│ - GCM_CLIENT_SECRET             │
+└──────┬──────────────────────────┘
+       │
+       ▼
+┌─────────────────────────────────┐
+│ Start MCP Relay (stdio mode)    │
+└──────┬──────────────────────────┘
+       │
+       ▼
+┌─────────────────────────────────┐
+│ On first tool call:             │
 │ 1. Get OAuth2 token (Keycloak)  │
 │ 2. Authorize with GCM           │
+│ 3. Cache access token (memory)  │
 └──────┬──────────────────────────┘
        │
        ▼
