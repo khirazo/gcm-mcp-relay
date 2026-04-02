@@ -16,7 +16,7 @@ IBM Guardium Cryptography Manager (GCM) 2.0.1 includes a built-in MCP server wit
 - ✅ **Transparent authentication**: Handles OAuth2/OIDC flow automatically
 - ✅ **Profile-based access control**: readonly/ops/admin profiles
 - ✅ **Comprehensive audit logging**: All tool invocations logged
-- ✅ **Dual transport modes**: stdio (local) and HTTP (remote)
+- ✅ **stdio transport mode**: Local AI agent integration
 - ✅ **Safe AI integration**: Selective tool exposure with policy enforcement
 
 ## Architecture
@@ -45,7 +45,6 @@ IBM Guardium Cryptography Manager (GCM) 2.0.1 includes a built-in MCP server wit
 
 ## Features
 
-### Phase 1 (Design Complete)
 - ✅ **Docker deployment**: Multi-stage build, non-root user, minimal image
 - ✅ **stdio mode**: Local development with AI coding agents
 - ✅ **Authentication**: Automatic OAuth2/OIDC token management
@@ -54,14 +53,11 @@ IBM Guardium Cryptography Manager (GCM) 2.0.1 includes a built-in MCP server wit
 - ✅ **Audit Logging**: Comprehensive structured logging (JSONL)
 - ✅ **Configuration**: TOML config + environment variables
 
-### Phase 2 (Planned)
-- 🔄 **HTTP mode**: Remote access with OIDC refresh tokens
-- 🔄 **Rate Limiting**: Per-tool rate limits
-- 🔄 **Hot Reload**: Dynamic policy updates
-- 🔄 **Metrics**: Prometheus-compatible metrics
-- 🔄 **Tool Abstraction**: Logical tools combining multiple GCM tools
+> **Note**: This is Phase 1 implementation (stdio mode). For future enhancement plans, see [docs/FUTURE_ENHANCEMENTS.md](docs/FUTURE_ENHANCEMENTS.md).
 
-## 🚀 Quick Start (Docker)
+## 🚀 Quick Start
+
+> **📖 For detailed setup instructions, see [QUICKSTART.md](QUICKSTART.md)**
 
 ### Prerequisites
 
@@ -72,75 +68,57 @@ IBM Guardium Cryptography Manager (GCM) 2.0.1 includes a built-in MCP server wit
 
 ### Setup (3 Steps)
 
-#### Step 1: Clone and Configure
+1. **Clone and configure**: Copy `.env.example` to `.env` and add your GCM credentials
+2. **Build container**: `docker compose build`
+3. **Configure IBM Bob**: Add relay to `mcp_settings.json`
+
+See [QUICKSTART.md](QUICKSTART.md) for detailed instructions.
+
+### Testing
+
+Test the relay locally before connecting to IBM Bob:
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd gcm-mcp-relay
+# Make test script executable (Linux/macOS/WSL)
+chmod +x scripts/test-mcp.sh
 
-# Copy environment template
-cp .env.example .env
-
-# Edit .env with your GCM credentials
-# Use your preferred text editor (nano, vim, notepad, etc.)
-nano .env
-```
-
-**Required values in `.env`:**
-```bash
-GCM_HOST=your-gcm-server.example.com
-GCM_USERNAME=your-username
-GCM_PASSWORD=your-password
-GCM_CLIENT_SECRET=your-client-secret
-```
-
-**Optional:** Edit `config/relay.toml` for non-sensitive settings (ports, log level, etc.)
-
-#### Step 2: Build Container
-
-```bash
-# Build the Docker image
-docker compose build
-
-# Verify the build
-docker images | grep gcm-mcp-relay
+# Run MCP protocol test
+./scripts/test-mcp.sh
 ```
 
 Expected output:
 ```
-gcm-mcp-relay:stdio    latest    241MB
-```
+=== GCM MCP Relay Test Script ===
 
-#### Step 3: Configure IBM Bob
-
-Add the GCM MCP Relay to IBM Bob's configuration file.
-
-**Location of Bob's config file:**
-- **Windows**: `%USERPROFILE%\.bob\settings\mcp_settings.json`
-- **macOS/Linux**: `~/.bob/settings/mcp_settings.json`
-
-**Configuration:**
-
-```json
+Test 1: Initialize
 {
-  "mcpServers": {
-    "gcm-mcp-relay": {
-      "command": "docker",
-      "args": [
-        "compose",
-        "run",
-        "--rm",
-        "gcm-mcp-relay"
-      ],
-      "cwd": "/absolute/path/to/gcm-mcp-relay",
-      "env": {}
-    }
+  "protocolVersion": "2024-11-05",
+  "serverInfo": {
+    "name": "gcm-mcp-relay",
+    "version": "0.1.0"
+  },
+  "capabilities": {
+    "tools": {}
   }
 }
-```
 
-**Restart IBM Bob** to load the new configuration.
+Test 2: List Tools
+Found 22 tools
+
+{
+  "name": "search_policies",
+  "description": "Retrieve policies filtered by policy_type..."
+}
+{
+  "name": "fetch_policy_by_id",
+  "description": "Retrieve one or more policies by their unique policy IDs..."
+}
+... (showing first 10 tools)
+
+Summary:
+- Initialize: ✓ Success
+- Tools List: ✓ Success (22 tools)
+```
 
 ### Verification
 
@@ -201,6 +179,10 @@ python -m gcm_relay --mode stdio --config config/relay.toml
 
 ## 📚 Documentation
 
+### Getting Started
+- **[How to Obtain GCM_CLIENT_SECRET](docs/KEYCLOAK_CLIENT_SECRET.md)** - Step-by-step guide to get Keycloak client secret
+
+### Architecture & Design
 - **[Architecture Design](docs/architecture.md)** - System architecture and component design
 - **[Docker Deployment](docs/docker-deployment.md)** - Complete Docker deployment guide
 - **[Implementation Guide](docs/implementation-guide.md)** - Configuration, logging, and error handling
@@ -307,7 +289,6 @@ Restricted tools that modify GCM state:
 
 - Default profile: `readonly` (most restrictive)
 - Profile-based tool access control
-- Tool-specific rate limiting (Phase 2)
 - Comprehensive audit logging
 
 ### Network Security
@@ -349,44 +330,40 @@ Logs include:
 ```
 gcm-mcp-relay/
 ├── src/gcm_relay/          # Source code
-│   ├── server/             # MCP server (stdio/HTTP)
+│   ├── server/             # MCP server (stdio)
 │   ├── tools/              # Tool management
 │   ├── policy/             # Policy engine
 │   ├── auth/               # Authentication
-│   ├── gcm/                # GCM client
+│   ├── client/             # GCM MCP client
 │   ├── audit/              # Audit logging
 │   └── config/             # Configuration
-├── tests/                  # Test suite
+├── scripts/                # Utility scripts
+│   └── test-mcp.sh        # MCP protocol test
 ├── docs/                   # Documentation
 ├── config/                 # Configuration files
 └── logs/                   # Log files
 ```
 
-### Running Tests
+### Testing
+
+The project includes an MCP protocol test script to verify relay functionality:
 
 ```bash
-# Run all tests
-pytest
+# Make test script executable (Linux/macOS/WSL)
+chmod +x scripts/test-mcp.sh
 
-# Run with coverage
-pytest --cov=gcm_relay --cov-report=html
-
-# Run specific test file
-pytest tests/unit/test_policy_engine.py
+# Run MCP protocol test
+./scripts/test-mcp.sh
 ```
 
-### Code Quality
+This tests:
+- MCP protocol initialization (2024-11-05)
+- Tool listing (22 tools in readonly profile)
+- JSON-RPC communication over stdio
 
-```bash
-# Format code
-black src/ tests/
+See [Testing](#testing) section above for expected output.
 
-# Lint code
-ruff check src/ tests/
-
-# Type checking
-mypy src/
-```
+> **Note**: Unit tests with pytest are planned for future implementation. Currently, use the MCP protocol test script for validation.
 
 ## Documentation
 
@@ -460,8 +437,8 @@ telnet gcm.example.com 31443
 ## Support
 
 For issues and questions:
-- GitHub Issues: [repository-url]/issues
-- Documentation: [repository-url]/docs
+- GitHub Issues: https://github.com/khirazo/gcm-mcp-relay/issues
+- Documentation: https://github.com/khirazo/gcm-mcp-relay/tree/main/docs
 
 ---
 
