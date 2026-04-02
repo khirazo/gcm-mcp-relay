@@ -1,0 +1,60 @@
+# GCM MCP Relay - Docker Compose Configuration
+# Optimized for stdio mode with IBM Bob MCP client
+
+services:
+  gcm-mcp-relay:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gcm-mcp-relay:stdio
+    container_name: gcm-mcp-relay
+    
+    # Mount configuration files (read-only)
+    volumes:
+      - ./config/relay.toml:/config/relay.toml:ro
+      - ./config/policy.yaml:/config/policy.yaml:ro
+      - ./logs:/logs
+    
+    # Environment variables for credentials
+    # Load from .env file or set directly
+    environment:
+      # Required credentials
+      - GCM_USERNAME=${GCM_USERNAME}
+      - GCM_PASSWORD=${GCM_PASSWORD}
+      - GCM_CLIENT_SECRET=${GCM_CLIENT_SECRET}
+      
+      # Optional overrides (defaults from relay.toml)
+      - GCM_HOST=${GCM_HOST:-localhost}
+      - GCM_API_PORT=${GCM_API_PORT:-31443}
+      - GCM_OIDC_HOST=${GCM_OIDC_HOST}
+      - GCM_OIDC_PORT=${GCM_OIDC_PORT:-30443}
+      - GCM_OIDC_REALM=${GCM_OIDC_REALM:-gcmrealm}
+      - GCM_CLIENT_ID=${GCM_CLIENT_ID:-gcmclient}
+      - GCM_AUTH_MODE=${GCM_AUTH_MODE:-auto}
+      - GCM_VERIFY_SSL=${GCM_VERIFY_SSL:-false}
+      - GCM_LOG_LEVEL=${GCM_LOG_LEVEL:-INFO}
+      - GCM_RELAY_PROFILE=${GCM_RELAY_PROFILE:-readonly}
+    
+    # Enable stdin for stdio communication
+    stdin_open: true
+    tty: true
+    
+    # Security: Run as non-root user
+    user: "1000:1000"
+    
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    
+    restart: unless-stopped
+
+# Note: No networks or ports needed for stdio mode
+# The container communicates via stdin/stdout with the MCP client
+
+# Made with Bob
