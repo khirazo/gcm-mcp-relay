@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../gcm-mcp-server"
+		},
+		{
+			"path": "../gdp-mcp-server"
 		}
 	],
 	"settings": {}
