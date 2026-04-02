@@ -1,0 +1,82 @@
+# GCM MCP Relay Configuration
+# This file is mounted read-only in Docker container at /config/relay.toml
+
+[relay]
+# Operational mode
+# IMPORTANT: Only "stdio" is currently supported. "http" mode is planned for Phase 2.
+mode = "stdio"  # Currently only "stdio" is implemented
+log_level = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+# Active profile
+profile = "readonly"  # Can be overridden by GCM_RELAY_PROFILE env var
+
+[relay.http]
+# ============================================================
+# HTTP mode settings - NOT YET IMPLEMENTED (Planned for Phase 2)
+# ============================================================
+# These settings are reserved for future HTTP/SSE transport mode.
+# Do not use - the relay will fail to start if mode = "http" is set.
+# See docs/FUTURE_ENHANCEMENTS.md for Phase 2 roadmap.
+host = "0.0.0.0"
+port = 8002
+enable_cors = true
+cors_origins = ["*"]
+
+[gcm]
+# GCM MCP server connection
+url = ""  # Will be built from host and api_port if empty
+host = "localhost"
+api_port = 31443
+verify_ssl = false
+request_timeout = 30
+connection_pool_size = 10
+
+[gcm.auth]
+# Authentication credentials - MUST be set via environment variables
+# SECURITY: Never commit credentials to this file
+username = ""  # Set via GCM_USERNAME (REQUIRED)
+password = ""  # Set via GCM_PASSWORD (REQUIRED)
+client_id = "gcmclient"  # Can override with GCM_CLIENT_ID
+client_secret = ""  # Set via GCM_CLIENT_SECRET (REQUIRED)
+auth_mode = "auto"  # "auto", "oauth2", "browser"
+
+[gcm.oidc]
+# OIDC Provider (Keycloak) settings
+# If host is empty, defaults to gcm.host
+# Set explicitly if OIDC is on a different host
+host = ""  # Optional: separate OIDC host (e.g., "keycloak.example.com")
+port = 30443
+realm = "gcmrealm"  # GCM default realm (can override with GCM_OIDC_REALM)
+
+# Example configurations:
+# Case 1: OIDC on same host as GCM (default)
+#   host = ""  # Will use gcm.host
+#   port = 30443
+#
+# Case 2: OIDC on different host
+#   host = "keycloak.example.com"
+#   port = 443
+
+[policy]
+# Policy configuration
+config_file = "/config/policy.yaml"  # Mounted in Docker
+enable_rate_limiting = true  # NOT YET IMPLEMENTED (Planned for Phase 2)
+enable_restrictions = true
+
+[audit]
+# Audit logging
+enabled = true
+log_file = "/logs/audit.jsonl"  # Mounted volume in Docker
+log_format = "json"  # "json" or "text"
+log_rotation = "daily"  # "daily", "weekly", "size"
+max_file_size_mb = 100
+retention_days = 90
+include_arguments = true
+include_results = false  # Don't log full results (may be large)
+
+[logging]
+# Application logging
+level = "INFO"
+format = "structured"  # "structured" or "simple"
+output = "stdout"  # "stdout" for Docker logs
+file = "/logs/relay.log"  # Optional: file logging

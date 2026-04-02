@@ -1,0 +1,52 @@
+# GCM MCP Relay - Policy Configuration
+# This file is mounted read-only in Docker container at /config/policy.yaml
+
+# Active profile
+profile: readonly
+
+# Available profiles
+profiles:
+  # Read-only profile (default, most secure)
+  readonly:
+    description: "Read-only access to GCM data - safe for AI agents"
+    allow:
+      - "*readonly"  # All read-only tools
+    deny: []
+
+  # Operations profile (read + ticket creation)
+  ops:
+    description: "Read access plus violation ticket creation"
+    allow:
+      - "*readonly"
+      - "create_violation_ticket"
+    deny: []
+
+  # Admin profile (all tools)
+  admin:
+    description: "Full access to all GCM tools - use with caution"
+    allow:
+      - "*"  # All tools
+    deny: []
+
+# Per-tool policies (optional overrides)
+tools:
+  # Example: Override risk level for specific tool
+  create_policy:
+    enabled: false  # Disabled even in admin profile
+    risk_level: high
+    category: state-changing
+    description: "Create new policy in GCM"
+
+  renew_ca_signed_certificate:
+    enabled: false  # Disabled by default
+    risk_level: high
+    category: state-changing
+    description: "Renew CA-signed certificate"
+
+  renew_self_signed_certificate:
+    enabled: false  # Disabled by default
+    risk_level: high
+    category: state-changing
+    description: "Renew self-signed certificate"
+
+# Made with Bob
