@@ -17,8 +17,7 @@ from gcm_relay.audit.logger import AuditLogger
 from gcm_relay.auth.manager import AuthenticationManager
 from gcm_relay.client.gcm_client import GCMClient
 from gcm_relay.config.models import Config
-from gcm_relay.exceptions import RelayError, ToolNotAllowedError
-from gcm_relay.policy.engine import PolicyEngine
+from gcm_relay.exceptions import RelayError
 from gcm_relay.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -36,7 +35,6 @@ class StdioMCPServer:
         config: Config,
         auth_manager: AuthenticationManager,
         gcm_client: GCMClient,
-        policy_engine: PolicyEngine,
         tool_registry: ToolRegistry,
         audit_logger: AuditLogger,
     ):
@@ -47,14 +45,12 @@ class StdioMCPServer:
             config: Application configuration
             auth_manager: Authentication manager
             gcm_client: GCM MCP client
-            policy_engine: Policy engine
             tool_registry: Tool registry
             audit_logger: Audit logger
         """
         self.config = config
         self.auth_manager = auth_manager
         self.gcm_client = gcm_client
-        self.policy_engine = policy_engine
         self.tool_registry = tool_registry
         self.audit_logger = audit_logger
         self._running = False
@@ -149,22 +145,12 @@ class StdioMCPServer:
         arguments = params.get("arguments", {})
         request_id = str(uuid.uuid4())
 
+        if not tool_name:
+            raise ValueError("Tool name is required")
+
         logger.info(f"Handling call_tool request: {tool_name}")
 
-        # Validate tool is allowed
-        try:
-            self.policy_engine.validate_tool_call(tool_name)
-        except ToolNotAllowedError as e:
-            # Log policy violation
-            self.audit_logger.log_policy_violation(
-                tool_name=tool_name,
-                user_id=self.config.gcm.auth.username,
-                profile=self.policy_engine.config.profile,
-                reason=str(e),
-            )
-            raise
-
-        # Log invocation start
+        # Log invocation start (no policy check - GCM RBAC enforces access)
         start_time = time.time()
         self.audit_logger.log_tool_invocation_start(
             tool_name=tool_name,
@@ -231,6 +217,12 @@ class StdioMCPServer:
             elif method == "tools/call":
                 result = await self.handle_call_tool(params)
             else:
+                # Check if this is an optional MCP method (resources, prompts, etc.)
+                # These are normal discovery attempts and should not be logged as errors
+                if method and method.startswith(("resources/", "prompts/", "sampling/")):
+                    logger.debug(f"Optional MCP method not implemented: {method}")
+                else:
+                    logger.warning(f"Unknown method: {method}")
                 raise ValueError(f"Unknown method: {method}")
 
             # Success response
@@ -250,6 +242,28 @@ class StdioMCPServer:
                     "code": -32000,
                     "message": e.message,
                     "data": e.to_dict(),
+                },
+            }
+
+        except ValueError as e:
+            # Method not found - log at debug level for optional methods
+            error_msg = str(e)
+            if "Unknown method:" in error_msg and any(
+                prefix in error_msg for prefix in ["resources/", "prompts/", "sampling/"]
+            ):
+                # Optional MCP method - not an error
+                logger.debug(f"Optional method not implemented: {error_msg}")
+            else:
+                # Truly unknown method
+                logger.error(f"Invalid request: {error_msg}")
+            
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32601,
+                    "message": "Method not found",
+                    "data": {"error": error_msg},
                 },
             }
 

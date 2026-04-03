@@ -31,7 +31,7 @@ def load_config(config_path: str) -> dict:
 
 def validate_config(config: dict) -> None:
     """Validate required configuration sections."""
-    required_sections = ['relay', 'gcm', 'policy', 'audit']
+    required_sections = ['relay', 'gcm', 'audit']
     for section in required_sections:
         if section not in config:
             print(f"✗ Missing required section: [{section}]", file=sys.stderr)

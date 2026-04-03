@@ -5,10 +5,7 @@
 # Operational mode
 # IMPORTANT: Only "stdio" is currently supported. "http" mode is planned for Phase 2.
 mode = "stdio"  # Currently only "stdio" is implemented
-log_level = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-
-# Active profile
-profile = "readonly"  # Can be overridden by GCM_RELAY_PROFILE env var
+log_level = "WARNING"  # DEBUG, INFO, WARNING, ERROR, CRITICAL (WARNING recommended for production)
 
 [relay.http]
 # ============================================================
@@ -56,12 +53,6 @@ realm = "gcmrealm"  # GCM default realm (can override with GCM_OIDC_REALM)
 # Case 2: OIDC on different host
 #   host = "keycloak.example.com"
 #   port = 443
-
-[policy]
-# Policy configuration
-config_file = "/config/policy.yaml"  # Mounted in Docker
-enable_rate_limiting = true  # NOT YET IMPLEMENTED (Planned for Phase 2)
-enable_restrictions = true
 
 [audit]
 # Audit logging

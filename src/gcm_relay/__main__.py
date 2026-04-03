@@ -17,7 +17,6 @@ from gcm_relay.auth.manager import AuthenticationManager
 from gcm_relay.client.gcm_client import GCMClient
 from gcm_relay.config import get_default_config_path, load_config
 from gcm_relay.exceptions import RelayError
-from gcm_relay.policy.engine import PolicyEngine
 from gcm_relay.server.stdio_server import StdioMCPServer
 from gcm_relay.tools.registry import ToolRegistry
 
@@ -51,40 +50,18 @@ async def main_async(config_path: Optional[Path] = None) -> int:
             logger.info("No configuration file found, using defaults")
             config = load_config()
 
-        logger.info(f"Active profile: {config.relay.profile}")
         logger.info(f"Log level: {config.relay.log_level}")
+        logger.info("Access control: GCM RBAC (user-based permissions)")
 
         # Update log level
         logging.getLogger().setLevel(config.relay.log_level)
 
-        # Load policy
-        policy_path = Path(config.policy.config_file)
-        if not policy_path.exists():
-            logger.warning(f"Policy file not found: {policy_path}, using default policy")
-            # Create minimal default policy
-            from gcm_relay.policy.models import PolicyConfig, ProfilePolicy
-
-            policy_config = PolicyConfig(
-                profile="readonly",
-                profiles={
-                    "readonly": ProfilePolicy(
-                        description="Read-only access",
-                        allow=["*readonly"],
-                        deny=[],
-                    )
-                },
-            )
-            policy_engine = PolicyEngine(policy_config)
-        else:
-            logger.info(f"Loading policy from: {policy_path}")
-            policy_engine = PolicyEngine.from_file(policy_path)
-
-        # Initialize components
+        # Initialize components (no policy engine)
         logger.info("Initializing components...")
 
         auth_manager = AuthenticationManager(config)
         gcm_client = GCMClient(config, auth_manager)
-        tool_registry = ToolRegistry(gcm_client, policy_engine)
+        tool_registry = ToolRegistry(gcm_client)
         audit_logger = AuditLogger(config.audit)
 
         # Create stdio server
@@ -92,7 +69,6 @@ async def main_async(config_path: Optional[Path] = None) -> int:
             config=config,
             auth_manager=auth_manager,
             gcm_client=gcm_client,
-            policy_engine=policy_engine,
             tool_registry=tool_registry,
             audit_logger=audit_logger,
         )
@@ -105,7 +81,7 @@ async def main_async(config_path: Optional[Path] = None) -> int:
             event_type="relay_start",
             user_id=config.gcm.auth.username,
             success=True,
-            details={"profile": config.relay.profile},
+            details={"access_control": "GCM RBAC"},
         )
 
         logger.info("GCM MCP Relay started successfully")

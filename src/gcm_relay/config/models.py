@@ -20,10 +20,6 @@ class RelayConfig(BaseModel):
         default="INFO",
         description="Application log level",
     )
-    profile: str = Field(
-        default="readonly",
-        description="Active policy profile (readonly/ops/admin)",
-    )
 
 
 class RelayHttpConfig(BaseModel):
@@ -143,23 +139,6 @@ class GCMConfig(BaseModel):
         return f"https://{self.host}:{self.api_port}/ibm/mcp/mcp"
 
 
-class PolicyConfig(BaseModel):
-    """Policy engine configuration."""
-
-    config_file: str = Field(
-        default="config/policy.yaml",
-        description="Policy configuration file path",
-    )
-    enable_rate_limiting: bool = Field(
-        default=True,
-        description="Enable rate limiting (Phase 2)",
-    )
-    enable_restrictions: bool = Field(
-        default=True,
-        description="Enable policy restrictions",
-    )
-
-
 class AuditConfig(BaseModel):
     """Audit logging configuration."""
 
@@ -237,10 +216,6 @@ class Config(BaseModel):
     gcm: GCMConfig = Field(
         default_factory=GCMConfig,
         description="GCM connection configuration",
-    )
-    policy: PolicyConfig = Field(
-        default_factory=PolicyConfig,
-        description="Policy engine configuration",
     )
     audit: AuditConfig = Field(
         default_factory=AuditConfig,

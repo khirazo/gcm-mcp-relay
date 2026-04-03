@@ -79,7 +79,7 @@ echo -e "${BLUE}Summary:${NC}"
 echo "- Initialize: $(echo "$RESPONSES" | sed -n '1p' | jq -r 'if .result then "✓ Success" else "✗ Failed" end')"
 echo "- Tools List: $(echo "$RESPONSES" | sed -n '2p' | jq -r 'if .result.tools then "✓ Success (" + (.result.tools | length | tostring) + " tools)" else "✗ Failed" end')"
 echo ""
-echo -e "${YELLOW}Note: GCM MCP Relay exposes tools from GCM built-in MCP server${NC}"
-echo -e "${YELLOW}      Only tools allowed by the active policy profile are listed${NC}"
+echo -e "${YELLOW}Note: GCM MCP Relay exposes all tools from GCM built-in MCP server${NC}"
+echo -e "${YELLOW}      Access control is enforced by GCM's RBAC (user-based permissions)${NC}"
 
 # Made with Bob

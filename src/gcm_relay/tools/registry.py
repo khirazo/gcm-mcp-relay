@@ -2,15 +2,14 @@
 """
 Tool registry for managing available tools.
 
-Maintains a registry of tools from GCM with policy-based filtering.
+Maintains a registry of tools from GCM (pass-through, no filtering).
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from gcm_relay.client.gcm_client import GCMClient
 from gcm_relay.exceptions import ToolNotFoundError
-from gcm_relay.policy.engine import PolicyEngine
 
 logger = logging.getLogger(__name__)
 
@@ -19,52 +18,52 @@ class ToolRegistry:
     """
     Registry of available tools from GCM.
 
-    Manages tool discovery, filtering, and metadata.
+    Manages tool discovery and metadata (no policy filtering).
+    All tools from GCM are exposed directly - access control is
+    enforced by GCM's native RBAC based on the authenticated user.
     """
 
-    def __init__(self, gcm_client: GCMClient, policy_engine: PolicyEngine):
+    def __init__(self, gcm_client: GCMClient):
         """
         Initialize tool registry.
 
         Args:
             gcm_client: GCM MCP client
-            policy_engine: Policy engine for filtering
         """
         self.gcm_client = gcm_client
-        self.policy_engine = policy_engine
-        self._tools: dict[str, dict[str, Any]] = {}
+        self._tools: dict[str, Any] = {}
         self._initialized = False
 
     async def initialize(self) -> None:
         """
         Initialize registry by discovering tools from GCM.
 
+        All tools from GCM are registered without filtering.
+        Access control is enforced by GCM's RBAC.
+
         Raises:
             GCMConnectionError: If tool discovery fails
         """
         logger.info("Initializing tool registry...")
 
-        # Discover tools from GCM
+        # Discover all tools from GCM
         all_tools = await self.gcm_client.list_tools()
         logger.info(f"Discovered {len(all_tools)} tools from GCM")
 
-        # Filter tools based on policy
-        allowed_tools = self.policy_engine.filter_tools(all_tools)
-        logger.info(f"Policy allows {len(allowed_tools)} tools")
-
-        # Build registry
+        # Build registry (no filtering - pass through all tools)
         # Handle both dict and object (e.g., LangChain StructuredTool)
         self._tools = {}
-        for tool in allowed_tools:
+        for tool in all_tools:
             if isinstance(tool, dict):
                 tool_name = tool["name"]
             else:
                 # Assume it's an object with .name attribute
                 tool_name = tool.name
             self._tools[tool_name] = tool
-        self._initialized = True
 
+        self._initialized = True
         logger.info(f"Tool registry initialized with {len(self._tools)} tools")
+        logger.info("Access control enforced by GCM RBAC (user-based permissions)")
 
     def is_initialized(self) -> bool:
         """Check if registry is initialized."""
@@ -131,62 +130,6 @@ class ToolRegistry:
 
         return tool_name in self._tools
 
-    def get_tools_by_category(self, category: str) -> list[dict[str, Any]]:
-        """
-        Get tools filtered by category.
-
-        Args:
-            category: Tool category (readonly, state-changing)
-
-        Returns:
-            List of tools in category
-        """
-        if not self._initialized:
-            raise RuntimeError("Tool registry not initialized")
-
-        return [
-            tool
-            for tool in self._tools.values()
-            if tool.get("metadata", {}).get("category") == category
-        ]
-
-    def get_tools_by_risk_level(self, risk_level: str) -> list[dict[str, Any]]:
-        """
-        Get tools filtered by risk level.
-
-        Args:
-            risk_level: Risk level (safe, moderate, high)
-
-        Returns:
-            List of tools with specified risk level
-        """
-        if not self._initialized:
-            raise RuntimeError("Tool registry not initialized")
-
-        return [
-            tool
-            for tool in self._tools.values()
-            if tool.get("metadata", {}).get("risk_level") == risk_level
-        ]
-
-    def get_readonly_tools(self) -> list[dict[str, Any]]:
-        """
-        Get all read-only tools.
-
-        Returns:
-            List of read-only tools
-        """
-        return self.get_tools_by_category("readonly")
-
-    def get_state_changing_tools(self) -> list[dict[str, Any]]:
-        """
-        Get all state-changing tools.
-
-        Returns:
-            List of state-changing tools
-        """
-        return self.get_tools_by_category("state-changing")
-
     def get_stats(self) -> dict[str, Any]:
         """
         Get registry statistics.
@@ -200,15 +143,11 @@ class ToolRegistry:
                 "total_tools": 0,
             }
 
-        readonly_count = len(self.get_readonly_tools())
-        state_changing_count = len(self.get_state_changing_tools())
-
         return {
             "initialized": True,
             "total_tools": len(self._tools),
-            "readonly_tools": readonly_count,
-            "state_changing_tools": state_changing_count,
-            "active_profile": self.policy_engine.config.profile,
+            "access_control": "GCM RBAC (user-based)",
         }
+
 
 # Made with Bob

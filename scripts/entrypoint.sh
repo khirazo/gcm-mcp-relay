@@ -64,16 +64,9 @@ else
     echo "  GCM OIDC Host: ${GCM_HOST} (using GCM host)"
 fi
 echo "  GCM OIDC Port: ${GCM_OIDC_PORT:-30443}"
-echo "  Relay Profile: ${GCM_RELAY_PROFILE:-readonly}"
+echo "  Access Control: GCM RBAC (user-based)"
 echo "  Log Level: ${GCM_LOG_LEVEL:-INFO}"
 echo ""
-
-# Validate policy configuration file
-if [ -f /config/policy.yaml ]; then
-    echo -e "${GREEN}✓ Policy configuration found: /config/policy.yaml${NC}"
-else
-    echo -e "${YELLOW}Warning: /config/policy.yaml not found, using default policy${NC}"
-fi
 
 # Start MCP Relay based on transport mode
 # Default to stdio mode (for laptop deployment with IBM Bob)
