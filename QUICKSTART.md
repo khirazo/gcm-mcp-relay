@@ -40,22 +40,37 @@ GCM_OIDC_PORT=443
 GCM_OIDC_REALM=gcmrealm
 
 # Authentication (REQUIRED)
-GCM_USERNAME=gcmadmin
+GCM_USERNAME=gcm-service-account
 GCM_PASSWORD=your-password
 GCM_CLIENT_SECRET=your-client-secret
 
 # Optional
 GCM_CLIENT_ID=gcmclient
 GCM_VERIFY_SSL=false  # Set to true in production
-GCM_RELAY_PROFILE=readonly  # readonly, ops, or admin
 ```
 
 **Important Notes:**
 - `GCM_OIDC_HOST`: Can be same as `GCM_HOST` or different (e.g., separate Keycloak server)
 - `GCM_OIDC_REALM`: Usually `gcmrealm` for GCM (not `master`)
 - `GCM_CLIENT_SECRET`: See [docs/KEYCLOAK_CLIENT_SECRET.md](docs/KEYCLOAK_CLIENT_SECRET.md) for how to obtain this
+- `GCM_USERNAME`: Use a dedicated service account with appropriate GCM roles
 
-**Optional: Edit `config/relay.toml`** for non-sensitive settings (log level, policy profile, etc.)
+**Optional: Edit `config/relay.toml`** for non-sensitive settings:
+
+```toml
+[relay]
+log_level = "WARNING"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+                       # WARNING recommended for production (reduces log noise)
+```
+
+**Log Level Guidelines:**
+- `DEBUG`: Verbose logging for troubleshooting (includes all MCP protocol details)
+- `INFO`: Normal operation logging (default for development)
+- `WARNING`: Production recommended (errors and warnings only, minimal noise)
+- `ERROR`: Only errors (not recommended - may miss important warnings)
+- `CRITICAL`: Only critical failures
+
+> **Tip**: Use `WARNING` level in production to reduce log volume. Optional MCP methods like `resources/list` are logged at DEBUG level and won't appear in WARNING mode.
 
 ### Step 2: Build Container
 
@@ -111,7 +126,7 @@ Test 1: Initialize
 }
 
 Test 2: List Tools
-Found 22 tools
+Found 32 tools
 
 {
   "name": "search_policies",
@@ -139,10 +154,10 @@ Found 22 tools
 
 Summary:
 - Initialize: ✓ Success
-- Tools List: ✓ Success (22 tools)
+- Tools List: ✓ Success (32 tools)
 
-Note: GCM MCP Relay exposes tools from GCM built-in MCP server
-      Only tools allowed by the active policy profile are listed
+Note: GCM MCP Relay exposes all tools from GCM built-in MCP server
+      Access control is enforced by GCM's RBAC (user-based permissions)
 ```
 
 **If the test fails:**
@@ -238,23 +253,30 @@ After configuring IBM Bob, restart Bob and verify the connection:
 **Expected behavior:**
 - Bob connects to GCM MCP Relay via stdio
 - Relay authenticates with GCM (OAuth2 + authorization)
-- Relay exposes 22 read-only tools (default `readonly` profile)
+- Relay exposes all tools from GCM (pass-through)
+- Access control enforced by GCM's RBAC (user roles)
 - Bob can query GCM data through the relay
 
-## 📊 Policy Profiles
+## 🔐 Access Control
 
-GCM MCP Relay supports three policy profiles (configured in `.env` via `GCM_RELAY_PROFILE`):
+**GCM MCP Relay uses GCM's native RBAC** for access control:
 
-| Profile | Tools Exposed | Use Case |
-|---------|---------------|----------|
-| `readonly` | 22 read-only tools | Safe for AI agents (default) |
-| `ops` | Read-only + ticket creation | Operations team |
-| `admin` | All 26 tools (including state-changing) | Administrators only |
+- All tools from GCM are exposed through the relay (pass-through)
+- Tool availability depends on the GCM user's assigned roles
+- Access control is enforced by GCM (not by the relay)
 
-**To change profile:**
-1. Edit `.env`: `GCM_RELAY_PROFILE=ops`
-2. Rebuild: `docker compose build`
-3. Restart Bob
+**Best Practices:**
+1. **Use dedicated service accounts** for AI agents
+2. **Assign minimal required roles** in GCM admin console
+3. **Monitor audit logs** to track tool usage
+4. **Rotate credentials regularly**
+
+**Example GCM User Roles:**
+- **Read-only user**: Can query data, cannot modify
+- **Operator**: Can query + create tickets
+- **Administrator**: Full access to all tools
+
+> **Note**: Configure user roles in GCM admin console, not in the relay configuration.
 
 ## 🔍 Troubleshooting
 
@@ -306,6 +328,18 @@ ERROR - SSL verification failed
 2. **Production**: Install GCM's CA certificate in system trust store
 3. **Self-signed certs**: Use `GCM_VERIFY_SSL=false` (not recommended for production)
 
+### Tool Access Denied
+
+**Symptom:**
+```
+ERROR - Tool execution failed: Access denied
+```
+
+**Solutions:**
+1. **Check GCM user roles**: Verify user has required permissions in GCM
+2. **Review GCM audit logs**: Check for permission denied events
+3. **Contact GCM admin**: Request appropriate role assignment
+
 ### No Tools Listed
 
 **Symptom:**
@@ -314,30 +348,104 @@ Tools List: ✓ Success (0 tools)
 ```
 
 **Solutions:**
-1. **Check policy profile**: Ensure `GCM_RELAY_PROFILE=readonly` (or `ops`/`admin`)
-2. **Verify policy file**: Check `config/policy.yaml` exists and is valid
-3. **Check GCM permissions**: User must have access to GCM tools
+1. **Check GCM connection**: Verify relay can connect to GCM MCP server
+2. **Check GCM permissions**: User must have access to at least some GCM tools
+3. **Review logs**: Check `docker compose logs gcm-mcp-relay` for errors
+
+## 🔧 Log Configuration
+
+The relay's log output can be controlled via `config/relay.toml`:
+
+### Log Levels
+
+```toml
+[relay]
+log_level = "WARNING"  # Recommended for production
+```
+
+**Available levels:**
+- `DEBUG`: All logs including MCP protocol details (verbose)
+- `INFO`: Normal operation logs (default for development)
+- `WARNING`: Errors and warnings only (recommended for production)
+- `ERROR`: Only error messages
+- `CRITICAL`: Only critical failures
+
+### Log Behavior Changes (v0.1.0+)
+
+**Reduced Log Noise:**
+- Optional MCP methods (`resources/list`, `prompts/list`, etc.) are now logged at `DEBUG` level
+- These are normal discovery attempts by MCP clients and not errors
+- With `WARNING` level, these messages won't appear in logs
+
+**Before (INFO level):**
+```
+ERROR - Unexpected error: Unknown method: resources/list
+Traceback (most recent call last):
+  ...
+```
+
+**After (WARNING level):**
+```
+(No output for optional methods - logged at DEBUG level only)
+```
+
+### Viewing Logs
+
+```bash
+# View Docker logs
+docker compose logs gcm-mcp-relay
+
+# Follow logs in real-time
+docker compose logs -f gcm-mcp-relay
+
+# View last 50 lines
+docker compose logs --tail=50 gcm-mcp-relay
+
+# View audit logs (tool invocations)
+cat logs/audit.jsonl | jq
+```
+
+### Troubleshooting with Logs
+
+If you need detailed logs for troubleshooting:
+
+1. **Temporarily enable DEBUG logging:**
+   ```toml
+   [relay]
+   log_level = "DEBUG"
+   ```
+
+2. **Restart the relay:**
+   ```bash
+   docker compose down
+   docker compose up -d
+   ```
+
+3. **Reproduce the issue** and check logs
+
+4. **Restore WARNING level** after troubleshooting
 
 ## 📚 Next Steps
 
 - **Read the documentation**: See [README.md](README.md) for architecture details
-- **Customize policies**: Edit `config/policy.yaml` to control tool access
+- **Configure GCM roles**: Set up appropriate user roles in GCM admin console
 - **View audit logs**: Check `logs/audit.jsonl` for tool invocation history
 - **Explore tools**: Ask Bob "What GCM tools are available?"
+- **Adjust log level**: Set to `WARNING` for production use
 
 ## 🔗 Related Documentation
 
 - [README.md](README.md) - Project overview and architecture
 - [docs/KEYCLOAK_CLIENT_SECRET.md](docs/KEYCLOAK_CLIENT_SECRET.md) - How to get client secret
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Detailed architecture design
-- [docs/policy-engine-design.md](docs/policy-engine-design.md) - Policy configuration guide
+- [docs/architecture.md](docs/architecture.md) - Detailed architecture design
 
 ## 💡 Tips
 
-- **Start with `readonly` profile** - Safest for AI agents
+- **Use service accounts** - Create dedicated GCM accounts for AI agents
 - **Monitor audit logs** - Track what tools are being called
 - **Use test script** - Verify setup before connecting Bob
 - **Keep credentials secure** - Never commit `.env` to version control
+- **Configure GCM roles** - Access control is managed in GCM, not in the relay
 
 ---
 
