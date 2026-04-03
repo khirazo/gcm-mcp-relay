@@ -7,37 +7,35 @@ A secure, Docker-based relay service that sits between AI coding agents and IBM 
 IBM Guardium Cryptography Manager (GCM) 2.0.1 includes a built-in MCP server with tools for managing cryptographic assets, certificates, and policies. However, direct access from AI agents is challenging due to:
 
 - Complex OAuth2/OIDC authentication flow
-- No built-in audit logging for AI agent interactions
 
 **GCM MCP Relay** solves these problems by:
 
 - ✅ **Docker-first deployment**: Containerized for consistent, portable deployment
 - ✅ **Transparent authentication**: Handles OAuth2/OIDC flow automatically
-- ✅ **Comprehensive audit logging**: All tool invocations logged
 - ✅ **stdio transport mode**: Local AI agent integration
 - ✅ **Pass-through architecture**: All GCM tools exposed (access controlled by GCM)
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                  PC / Laptop (Docker Host)                    │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │         AI Coding Agent (IBM Bob / Cursor)             │  │
-│  └────────────────────────┬───────────────────────────────┘  │
-│                           │ stdio                             │
-│  ┌────────────────────────▼───────────────────────────────┐  │
-│  │       Docker Container: GCM MCP Relay                  │  │
-│  │  - Authentication management                           │  │
-│  │  - Audit logging                                       │  │
-│  │  - Tool pass-through                                   │  │
-│  └────────────────────────┬───────────────────────────────┘  │
-└────────────────────────────┼─────────────────────────────────┘
-                             │ HTTPS + Bearer JWT
-┌────────────────────────────▼─────────────────────────────────┐
-│          GCM Built-in MCP Server                              │
-│          (streamable-http, 26 tools, RBAC enforced)           │
-└───────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph docker_host["PC / Laptop (Docker Host)"]
+        agent["AI Coding Agent<br/>(IBM Bob / Cursor)"]
+        
+        subgraph container["Docker Container: GCM MCP Relay"]
+            relay["- Authentication management<br/>- Audit logging<br/>- Tool pass-through"]
+        end
+        
+        agent -->|stdio| relay
+    end
+    
+    relay -->|"HTTPS + Bearer JWT"| gcm["GCM Built-in MCP Server<br/>(streamable-http, 26 tools, RBAC enforced)"]
+    
+    style docker_host fill:#f9f9f9,stroke:#333,stroke-width:2px
+    style container fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style agent fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style relay fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style gcm fill:#fce4ec,stroke:#c2185b,stroke-width:2px
 ```
 
 ## Features
@@ -45,9 +43,7 @@ IBM Guardium Cryptography Manager (GCM) 2.0.1 includes a built-in MCP server wit
 - ✅ **Docker deployment**: Multi-stage build, non-root user, minimal image
 - ✅ **stdio mode**: Local development with AI coding agents
 - ✅ **Authentication**: Automatic OAuth2/OIDC token management
-- ✅ **GCM RBAC**: Access control enforced by GCM based on user roles
 - ✅ **Tool Pass-through**: All GCM tools exposed (no filtering)
-- ✅ **Audit Logging**: Comprehensive structured logging (JSONL)
 - ✅ **Configuration**: TOML config + environment variables
 
 ## 🚀 Quick Start
