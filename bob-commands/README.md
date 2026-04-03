@@ -1,6 +1,6 @@
 # IBM Bob Slash Command for GCM MCP Relay
 
-This directory contains the `/gcm` slash command configuration for IBM Bob to provide secure, policy-controlled access to IBM Guardium Cryptography Manager operations.
+This directory contains the `/gcm` slash command configuration for IBM Bob to provide secure access to IBM Guardium Cryptography Manager operations.
 
 ## Overview
 
@@ -37,7 +37,7 @@ IBM Bob uses **Markdown-based slash commands** (`.md` files) to define custom co
    docker compose up -d
    ```
 
-2. **Configuration Files**: Verify `config/relay.toml` and `config/policy.yaml` are properly configured
+2. **Configuration Files**: Verify `config/relay.toml` is properly configured
 
 3. **Credentials**: Ensure `.env` file contains required credentials:
    ```bash
@@ -110,54 +110,19 @@ cp bob-commands/gcm.md /opt/ibm-bob/commands/
 /gcm Create a violation ticket for unauthorized key access attempt
 ```
 
-## Access Profiles
+## Available Tools
 
-The gcm-mcp-relay enforces three access profiles:
+The gcm-mcp-relay provides access to GCM MCP server tools across these categories:
 
-### readonly (Default)
-- **Tools**: 22 read-only tools
-- **Use Case**: Safe operations, information retrieval
-- **Examples**: list_keys, get_key_details, search_keys, view_policies
+- **Policy Management** - Search and view policies
+- **Violation Management** - Query violations and create tickets
+- **IT Asset Management** - List and view IT assets
+- **Crypto Object Management** - Manage certificates, keys, and protocols
+- **Certificate Lifecycle** - Certificate permissions and renewal
+- **Integration Management** - View integration configurations
+- **User Management** - Query user details
 
-### ops (Operations Team)
-- **Tools**: readonly + create_violation_ticket
-- **Use Case**: Operations team with incident management
-- **Examples**: All readonly tools + create compliance tickets
-
-### admin (Full Access)
-- **Tools**: All 26 tools
-- **Use Case**: Full administrative access
-- **Examples**: All tools including generate_key, rotate_key, delete_key
-
-## Configuration
-
-### Changing Your Profile
-
-Edit `config/policy.yaml` in the gcm-mcp-relay directory:
-
-```yaml
-profiles:
-  readonly:
-    allowed_tools:
-      - "*readonly"  # All 22 read-only tools
-  
-  ops:
-    allowed_tools:
-      - "*readonly"
-      - "create_violation_ticket"
-  
-  admin:
-    allowed_tools:
-      - "*"  # All 26 tools
-
-# Set your default profile
-default_profile: "readonly"  # Change to "ops" or "admin" as needed
-```
-
-After changing the profile:
-```bash
-docker compose restart
-```
+**Note**: The specific tools available depend on the GCM MCP server version and configuration.
 
 ## Troubleshooting
 
@@ -198,15 +163,6 @@ docker compose restart
    docker compose logs gcm-mcp-relay | grep -i auth
    ```
 
-### Tool Not Allowed
-
-**Problem:** "Tool not allowed for profile 'readonly'"
-
-**Solution:**
-1. Check your current profile in `policy.yaml`
-2. Request profile upgrade from administrator if needed
-3. Verify the tool is in the allowed_tools list for your profile
-
 
 ## How It Works
 
@@ -238,7 +194,6 @@ docker compose restart
          ▼
 ┌─────────────────┐
 │  GCM MCP Server │
-│  (26 tools)     │
 └─────────────────┘
 ```
 
@@ -282,7 +237,7 @@ bob-commands/
 
 For issues or questions:
 
-1. **GCM MCP Relay**: Check the relay's configuration files (`relay.toml`, `policy.yaml`)
+1. **GCM MCP Relay**: Check the relay's configuration file (`relay.toml`)
 2. **IBM Bob**: Consult IBM Bob documentation
 3. **GCM Server**: Refer to IBM Guardium Cryptography Manager documentation
 

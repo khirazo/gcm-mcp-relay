@@ -4,16 +4,15 @@ description: "Always use the gcm-mcp-relay to execute GCM commands and operation
 
 # GCM MCP Relay Command
 
-This slash command ensures that all GCM-related operations are executed through the **gcm-mcp-relay**, providing secure, policy-controlled access to IBM Guardium Cryptography Manager APIs.
+This slash command ensures that all GCM-related operations are executed through the **gcm-mcp-relay**, providing secure access to IBM Guardium Cryptography Manager APIs.
 
 ## Purpose
 
 When you use `/gcm` followed by any command or request, IBM Bob will:
 
 1. **Route to gcm-mcp-relay**: All operations use the configured gcm-mcp-relay
-2. **Access 26 GCM Tools**: Full access to GCM MCP server tools (subject to policy)
-3. **Enforce Access Control**: Profile-based restrictions (readonly/ops/admin)
-4. **Audit All Operations**: Comprehensive logging of tool invocations
+2. **Access GCM Tools**: Full access to GCM MCP server tools
+3. **Audit All Operations**: Comprehensive logging of tool invocations
 
 ## Usage
 
@@ -68,29 +67,18 @@ The `/gcm` command acts as a **routing directive** that tells IBM Bob to:
 
 ## MCP Tools Available
 
-When you use `/gcm`, Bob has access to these tool categories:
+When you use `/gcm`, Bob has access to GCM MCP server tools across these categories:
 
-### Read-Only Tools (22 tools - readonly profile)
-1. **Key Management** - List, search, and view key details
-2. **Policy Management** - View policies and compliance status
-3. **Audit & Compliance** - Query audit logs and violation reports
-4. **System Information** - View system health and configuration
+### Tool Categories
+1. **Policy Management** - Search and view policies
+2. **Violation Management** - Query violations and create tickets
+3. **IT Asset Management** - List and view IT assets
+4. **Crypto Object Management** - Manage certificates, keys, and protocols
+5. **Certificate Lifecycle** - Certificate permissions and renewal
+6. **Integration Management** - View integration configurations
+7. **User Management** - Query user details
 
-### State-Changing Tools (4 tools - ops/admin profiles)
-1. **create_violation_ticket** - Create compliance violation tickets (ops+)
-2. **generate_key** - Generate new cryptographic keys (admin only)
-3. **rotate_key** - Rotate existing keys (admin only)
-4. **delete_key** - Delete keys (admin only)
-
-## Access Profiles
-
-The relay enforces three access profiles:
-
-| Profile | Tools Available | Use Case |
-|---------|----------------|----------|
-| **readonly** | 22 read-only tools | Default, safe operations |
-| **ops** | readonly + create_violation_ticket | Operations team |
-| **admin** | All 26 tools | Full administrative access |
+**Note**: The specific tools available depend on the GCM MCP server version and configuration.
 
 ## Workflow Example
 
@@ -98,11 +86,10 @@ The relay enforces three access profiles:
 User: /gcm List all AES keys in production
 
 Bob internally executes:
-  1. Validates user profile (readonly sufficient)
-  2. Calls gcm-mcp-relay with list_keys tool
-  3. Filters results for AES keys
-  4. Formats and presents results
-  5. Logs operation to audit trail
+  1. Calls gcm-mcp-relay with appropriate tool
+  2. Filters results for AES keys
+  3. Formats and presents results
+  4. Logs operation to audit trail
 ```
 
 ## Technical Details
@@ -111,7 +98,6 @@ Bob internally executes:
 - **Transport**: stdio (Phase 1) / HTTP (Phase 2)
 - **Authentication**: OAuth2/OIDC via Keycloak
 - **GCM Backend**: IBM Guardium Cryptography Manager
-- **Tools**: 26 GCM MCP server tools (22 safe, 4 dangerous)
 - **Audit**: JSONL format logs in `/logs/audit.jsonl`
 
 ## Security Features
@@ -126,17 +112,16 @@ Bob internally executes:
 
 - This command is a **routing directive**, not a tool itself
 - All actual operations are performed by the gcm-mcp-relay
-- Access is controlled by the configured profile in `policy.yaml`
-- Dangerous operations require explicit admin profile configuration
 - All operations are logged for compliance and audit purposes
+- State-changing operations should be used with caution
 
 ## Error Handling
 
 If you encounter errors:
 
-1. **"Tool not allowed"** - Check your profile in `policy.yaml`
-2. **"Authentication failed"** - Verify credentials in `.env` file
-3. **"Connection refused"** - Ensure gcm-mcp-relay container is running
+1. **"Authentication failed"** - Verify credentials in `.env` file
+2. **"Connection refused"** - Ensure gcm-mcp-relay container is running
+3. **"Tool execution failed"** - Check GCM server logs for details
 
 ---
 
