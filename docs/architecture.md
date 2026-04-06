@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-GCM MCP Relay is a secure relay service that sits between AI coding agents and IBM Guardium Cryptography Manager (GCM) built-in MCP server. It simplifies authentication, enforces access control policies, and provides comprehensive audit logging.
+GCM MCP Relay is a secure relay service that sits between AI coding agents and IBM Guardium Cryptography Manager (GCM) built-in MCP server. It simplifies authentication and provides comprehensive audit logging.
 
 ### Design Principles
 
@@ -38,12 +38,6 @@ GCM MCP Relay is a secure relay service that sits between AI coding agents and I
 │  │  │  - Schema transformation                         │  │  │
 │  │  └──────────────────────┬───────────────────────────┘  │  │
 │  │  ┌──────────────────────▼───────────────────────────┐  │  │
-│  │  │  Policy Engine                                   │  │  │
-│  │  │  - Tool allowlist enforcement                    │  │  │
-│  │  │  - Profile-based access control                  │  │  │
-│  │  │  - Argument validation                           │  │  │
-│  │  └──────────────────────┬───────────────────────────┘  │  │
-│  │  ┌──────────────────────▼───────────────────────────┐  │  │
 │  │  │  Authentication Manager                          │  │  │
 │  │  │  - OAuth2/OIDC token management                  │  │  │
 │  │  │  - Token caching & refresh                       │  │  │
@@ -62,7 +56,6 @@ GCM MCP Relay is a secure relay service that sits between AI coding agents and I
 │  │                         │                              │  │
 │  │  Volumes:               │                              │  │
 │  │  - config.toml (ro)     │                              │  │
-│  │  - policy.yaml (ro)     │                              │  │
 │  │  - audit logs           │                              │  │
 │  └─────────────────────────┼──────────────────────────────┘  │
 └────────────────────────────┼─────────────────────────────────┘
@@ -89,11 +82,6 @@ GCM MCP Relay is a secure relay service that sits between AI coding agents and I
 - Input parameter normalization
 - Output format standardization
 
-#### Policy Engine
-- Load tool allowlist at startup
-- Validate tool calls at execution time
-- Profile-based access control (readonly/ops/admin)
-- Parameter validation
 
 #### Authentication Manager
 - **stdio mode**: Load credentials from environment/config
@@ -149,23 +137,7 @@ Classification of 26 tools from the manual:
 25. `renew_ca_signed_certificate` - Renew CA-signed certificate ⚠️
 26. `renew_self_signed_certificate` - Renew self-signed certificate ⚠️
 
-### 3.2 Tool Exposure Profiles
-
-#### Profile: `readonly` (Default)
-- Exposes Read-Only Tools (1-22) only
-- Optimal for normal AI coding agent use
-- Most secure profile
-
-#### Profile: `ops`
-- Read-Only Tools + `create_violation_ticket`
-- For operations teams creating tickets
-
-#### Profile: `admin`
-- All tools (1-26)
-- For administrators only
-- Requires strict access control
-
-### 3.3 Tool Mapping Strategy
+### 3.2 Tool Mapping Strategy
 
 Phase 1: Expose GCM tools **as-is** (no renaming). Add metadata:
 
@@ -284,7 +256,6 @@ Phase 2+: Add abstraction layer if needed.
 [relay]
 mode = "stdio"  # "stdio" or "http"
 log_level = "INFO"
-profile = "readonly"  # "readonly", "ops", "admin"
 
 [relay.http]
 # HTTP mode settings (Phase 2)
@@ -311,10 +282,6 @@ host = "gcm.example.com"
 port = 30443
 realm = "gcmrealm"
 
-[policy]
-# Tool access policy
-config_file = "config/tools.yaml"
-
 [audit]
 # Audit logging
 enabled = true
@@ -323,63 +290,11 @@ log_rotation = "daily"
 retention_days = 90
 ```
 
-### 5.2 Tool Policy Configuration
+### 5.2 Access Control
 
-```yaml
-# config/tools.yaml
+**All access control is enforced by GCM's built-in RBAC (Role-Based Access Control).**
 
-# Active profile
-profile: readonly
-
-# Profile definitions
-profiles:
-  readonly:
-    description: "Read-only access to GCM data"
-    allow:
-      - search_policies
-      - fetch_policy_by_id
-      - get_violation_by_id
-      - fetch_policy_violations_ticket
-      - policy_violations_dashboard
-      - get_filters_by_it_assets
-      - fetch_detailed_asset_list_by_it_assets
-      - fetch_individual_asset_detail_by_it_assets
-      - get_category_metadata_by_it_assets
-      - get_filters_by_crypto_objects
-      - fetch_detailed_asset_list_by_crypto_objects
-      - fetch_individual_asset_detail_by_crypto_objects
-      - get_category_metadata_by_crypto_objects
-      - get_asset_groups
-      - fetch_asset_metadata
-      - fetch_bulk_vulnerable_crypto_objects
-      - get_vulnerable_crypto_objects_count
-      - get_all_intergration
-      - get_certificate_permissions
-      - get_vault_details
-      - get_certificate_details
-      - get_user_details_by_username
-
-  ops:
-    description: "Operations team access"
-    allow:
-      - "*readonly"  # Include all readonly tools
-      - create_violation_ticket
-
-  admin:
-    description: "Full administrative access"
-    allow:
-      - "*"  # All tools
-
-# Tool-specific restrictions (optional)
-tool_restrictions:
-  create_policy:
-    max_calls_per_hour: 10
-    require_confirmation: true
-    
-  renew_ca_signed_certificate:
-    max_calls_per_hour: 5
-    require_confirmation: true
-```
+The relay does not implement additional authorization layers. Tool access permissions are managed through GCM user roles, not by the relay. The relay exposes all 26 GCM tools directly, and GCM's RBAC determines which operations each user can perform.
 
 ## 6. Security Considerations
 
@@ -392,7 +307,6 @@ tool_restrictions:
    - Validate credentials
 
 2. **Runtime Checks**
-   - Validate tool calls against allowlist
    - Validate parameters against schema
    - Sanitize inputs
    - Rate limiting (Phase 2)
@@ -439,9 +353,8 @@ tool_restrictions:
    - Suggest credential issues
 
 3. **Authorization Errors**
-   - Tool not in allowlist
-   - Profile lacks permission
-   - Clear rejection reason
+   - GCM RBAC permission denied
+   - Clear rejection reason from GCM
 
 4. **GCM API Errors**
    - Return GCM error as-is
@@ -458,13 +371,11 @@ tool_restrictions:
 ```json
 {
   "error": {
-    "code": "TOOL_NOT_ALLOWED",
-    "message": "Tool 'create_policy' is not allowed in profile 'readonly'",
+    "code": "AUTHORIZATION_ERROR",
+    "message": "Permission denied by GCM RBAC",
     "details": {
       "tool": "create_policy",
-      "profile": "readonly",
-      "allowed_tools": ["search_policies", "fetch_policy_by_id", ...],
-      "required_profile": "admin"
+      "gcm_error": "User lacks required permissions"
     }
   }
 }
