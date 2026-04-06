@@ -2,21 +2,16 @@
 
 ## 1. Overview
 
-The Tool Abstraction Layer manages the exposure of GCM's 26 built-in MCP tools to AI agents. It implements a selective exposure strategy where safe read-only tools are directly exposed, while dangerous state-changing tools are restricted or hidden.
+The Tool Abstraction Layer manages the exposure of GCM's 26 built-in MCP tools to AI agents. All tools are exposed directly to AI agents, with access control enforced by GCM's built-in RBAC system.
 
 ## 2. Design Principles
 
-### 2.1 Selective Exposure
-- **Read-only tools**: Directly exposed with minimal transformation
-- **State-changing tools**: Restricted by default, require explicit configuration
-- **Tool metadata**: Enhanced with safety information
+### 2.1 Direct Exposure
+- **All 26 tools**: Exposed directly to AI agents
+- **Access control**: Enforced by GCM's RBAC, not by relay
+- **Tool metadata**: Enhanced with risk level information
 
-### 2.2 Configuration-Driven
-- Tool allowlists defined in YAML configuration
-- Profile-based access control (readonly/ops/admin)
-- No code changes required to modify tool exposure
-
-### 2.3 Transparency
+### 2.2 Transparency
 - Tool names preserved (no renaming in Phase 1)
 - Original schemas maintained
 - Clear documentation of restrictions
@@ -99,9 +94,8 @@ class ToolRegistry:
     Manages tool discovery, metadata, and filtering based on policy.
     """
     
-    def __init__(self, gcm_client: GCMClient, policy_engine: PolicyEngine):
+    def __init__(self, gcm_client: GCMClient):
         self.gcm_client = gcm_client
-        self.policy_engine = policy_engine
         self._tools: Dict[str, ToolMetadata] = {}
         self._initialized = False
     
@@ -110,8 +104,7 @@ class ToolRegistry:
         Initialize tool registry by discovering tools from GCM.
         
         1. Call GCM MCP server's list_tools
-        2. Enhance with local metadata
-        3. Filter based on policy
+        2. Enhance with local metadata (risk levels, categories)
         """
         if self._initialized:
             return
@@ -141,28 +134,18 @@ class ToolRegistry:
             is_read_only=is_read_only,
             input_schema=gcm_tool.inputSchema,
             output_schema={},
-            default_profiles=self._get_default_profiles(gcm_tool.name),
-            requires_approval=risk_level == "high",
+            requires_approval=False,  # No relay-level approval required
             examples=[],
             notes=None
         )
     
-    def get_allowed_tools(self, profile: str) -> List[ToolMetadata]:
-        """Get list of tools allowed for the given profile."""
-        allowed_names = self.policy_engine.get_allowed_tools(profile)
-        return [
-            self._tools[name]
-            for name in allowed_names
-            if name in self._tools
-        ]
+    def get_all_tools(self) -> List[ToolMetadata]:
+        """Get list of all available tools."""
+        return list(self._tools.values())
     
     def get_tool(self, name: str) -> Optional[ToolMetadata]:
         """Get metadata for a specific tool."""
         return self._tools.get(name)
-    
-    def is_tool_allowed(self, name: str, profile: str) -> bool:
-        """Check if a tool is allowed for the given profile."""
-        return self.policy_engine.is_tool_allowed(name, profile)
 ```
 
 ### 4.3 Tool Classification Logic
@@ -263,14 +246,7 @@ def _get_default_profiles(tool_name: str) -> List[str]:
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 3. Policy Engine: Check tool is allowed                      │
-│    - Check against profile allowlist                         │
-│    - Return error if not allowed                             │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 4. Tool Validator: Validate arguments                        │
+│ 3. Tool Validator: Validate arguments                        │
 │    - Check against input schema                              │
 │    - Sanitize inputs                                         │
 │    - Return error if invalid                                 │
@@ -278,20 +254,21 @@ def _get_default_profiles(tool_name: str) -> List[str]:
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 5. Audit Logger: Log invocation (pre-execution)              │
+│ 4. Audit Logger: Log invocation (pre-execution)              │
 │    - Tool name, arguments, timestamp                         │
 └────────────────────────┬────────────────────────────────────┘
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 6. GCM Client: Call GCM MCP server                           │
+│ 5. GCM Client: Call GCM MCP server                           │
 │    - Forward tool call with Bearer token                     │
+│    - GCM RBAC enforces access control                        │
 │    - Handle errors and timeouts                              │
 └────────────────────────┬────────────────────────────────────┘
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 7. Audit Logger: Log result (post-execution)                 │
+│ 6. Audit Logger: Log result (post-execution)                 │
 │    - Success/failure, duration, response size                │
 └────────────────────────┬────────────────────────────────────┘
                          │
@@ -312,16 +289,12 @@ class ToolExecutor:
     def __init__(
         self,
         tool_registry: ToolRegistry,
-        policy_engine: PolicyEngine,
         gcm_client: GCMClient,
-        audit_logger: AuditLogger,
-        profile: str
+        audit_logger: AuditLogger
     ):
         self.tool_registry = tool_registry
-        self.policy_engine = policy_engine
         self.gcm_client = gcm_client
         self.audit_logger = audit_logger
-        self.profile = profile
     
     async def execute_tool(
         self,
@@ -340,9 +313,8 @@ class ToolExecutor:
             
         Raises:
             ToolNotFoundError: Tool does not exist
-            ToolNotAllowedError: Tool not allowed for current profile
             ValidationError: Invalid arguments
-            GCMError: Error from GCM MCP server
+            GCMError: Error from GCM MCP server (including RBAC denials)
         """
         start_time = time.time()
         
@@ -352,35 +324,27 @@ class ToolExecutor:
             if not tool_metadata:
                 raise ToolNotFoundError(f"Tool '{tool_name}' not found")
             
-            # 2. Check tool is allowed
-            if not self.policy_engine.is_tool_allowed(tool_name, self.profile):
-                raise ToolNotAllowedError(
-                    f"Tool '{tool_name}' not allowed for profile '{self.profile}'"
-                )
-            
-            # 3. Validate arguments
+            # 2. Validate arguments
             validated_args = self._validate_arguments(
                 tool_metadata.input_schema,
                 arguments
             )
             
-            # 4. Log pre-execution
+            # 3. Log pre-execution
             await self.audit_logger.log_tool_invocation(
                 tool_name=tool_name,
                 arguments=validated_args,
-                profile=self.profile,
                 status="started"
             )
             
-            # 5. Execute tool via GCM client
+            # 4. Execute tool via GCM client (GCM RBAC enforces access)
             result = await self.gcm_client.call_tool(tool_name, validated_args)
             
-            # 6. Log post-execution
+            # 5. Log post-execution
             duration_ms = (time.time() - start_time) * 1000
             await self.audit_logger.log_tool_invocation(
                 tool_name=tool_name,
                 arguments=validated_args,
-                profile=self.profile,
                 status="success",
                 duration_ms=duration_ms,
                 result_size=len(json.dumps(result))
@@ -599,11 +563,12 @@ class TestToolExecution:
         )
         assert result is not None
     
-    async def test_execute_disallowed_tool(self):
-        """Test executing a disallowed tool raises error."""
-        executor = ToolExecutor(profile="readonly")
-        with pytest.raises(ToolNotAllowedError):
+    async def test_execute_tool_with_gcm_rbac_denial(self):
+        """Test GCM RBAC denial is properly handled."""
+        executor = ToolExecutor(...)
+        with pytest.raises(GCMError) as exc_info:
             await executor.execute_tool("create_policy", {})
+        assert "permission denied" in str(exc_info.value).lower()
 ```
 
 ## 9. Phase 2 Enhancements
