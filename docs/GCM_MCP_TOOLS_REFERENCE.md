@@ -31,9 +31,8 @@ Retrieve detailed information for a specific policy by its ID.
 #### `create_policy` ⚠️ **HIGH RISK**
 Create a new security policy.
 
-**Use Cases**: Define and register new policies  
-**Access**: admin profile only  
-**Warning**: Affects system-wide security configuration
+**Use Cases**: Define and register new policies
+**Warning**: Affects system-wide security configuration. Requires appropriate GCM user permissions.
 
 ---
 
@@ -63,9 +62,8 @@ Retrieve violation statistics and dashboard data.
 #### `create_violation_ticket` ⚠️ **MODERATE RISK**
 Create a ticket for a policy violation. Integrates with external systems like Jira and ServiceNow.
 
-**Use Cases**: Track violations, manage remediation actions  
-**Access**: ops, admin profiles  
-**Warning**: Creates records in external ticketing systems
+**Use Cases**: Track violations, manage remediation actions
+**Warning**: Creates records in external ticketing systems. Requires appropriate GCM user permissions.
 
 ---
 
@@ -179,16 +177,14 @@ Retrieve detailed information for a certificate by its ID.
 #### `renew_ca_signed_certificate` ⚠️ **HIGH RISK**
 Renew a CA-signed certificate with auto-deploy option.
 
-**Use Cases**: Certificate renewal, certificate lifecycle management  
-**Access**: admin profile only  
-**Warning**: Affects production certificates
+**Use Cases**: Certificate renewal, certificate lifecycle management
+**Warning**: Affects production certificates. Requires appropriate GCM user permissions.
 
 #### `renew_self_signed_certificate` ⚠️ **HIGH RISK**
 Create or renew a self-signed certificate.
 
-**Use Cases**: Self-signed certificate management, test environment certificate creation  
-**Access**: admin profile only  
-**Warning**: Executes certificate creation/renewal
+**Use Cases**: Self-signed certificate management, test environment certificate creation
+**Warning**: Executes certificate creation/renewal. Requires appropriate GCM user permissions.
 
 ---
 
@@ -220,19 +216,15 @@ Retrieve user details by username or email address.
 
 ## 🔒 Security and Access Control
 
-### Profile-Based Access
-
-| Profile | Read-Only | State-Changing (MODERATE) | State-Changing (HIGH) |
-|---------|-----------|--------------------------|----------------------|
-| **readonly** | ✅ All 22 | ❌ | ❌ |
-| **ops** | ✅ All 22 | ✅ 1 tool | ❌ |
-| **admin** | ✅ All 22 | ✅ 1 tool | ✅ 3 tools |
-
 ### Risk Levels
+
+All access control is enforced by GCM's built-in RBAC (Role-Based Access Control). The relay does not implement additional authorization layers.
 
 - **SAFE** (22 tools): Read-only data access, no system state changes
 - **MODERATE** (1 tool): Limited state changes such as ticket creation
 - **HIGH** (3 tools): Critical state changes such as policy creation and certificate renewal
+
+**Note**: Tool access permissions are managed through GCM user roles, not by the relay.
 
 ---
 
