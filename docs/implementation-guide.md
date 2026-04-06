@@ -32,9 +32,6 @@ This document consolidates the remaining design areas: Configuration Management,
 mode = "stdio"  # "stdio" or "http"
 log_level = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
-# Active profile
-profile = "readonly"  # Can be overridden by GCM_RELAY_PROFILE env var
-
 [relay.http]
 # HTTP mode settings (Phase 2)
 host = "0.0.0.0"
@@ -141,7 +138,6 @@ class RelayConfig(BaseModel):
     """Relay server configuration."""
     mode: str = "stdio"
     log_level: str = "INFO"
-    profile: str = "readonly"
 
 class RelayHttpConfig(BaseModel):
     """HTTP mode configuration."""
@@ -302,7 +298,6 @@ export GCM_RELAY_AUDIT__LOG_FILE=logs/audit.jsonl
   "timestamp": "2026-03-27T08:00:00.123Z",
   "event_type": "tool_invocation",
   "tool_name": "search_policies",
-  "profile": "readonly",
   "user": "ai-agent-001",
   "session_id": "sess_abc123",
   "arguments": {
@@ -853,15 +848,12 @@ class SIEMIntegration:
 - [ ] Config files have restrictive permissions
 - [ ] TLS verification enabled (production)
 - [ ] Audit logging enabled
-- [ ] Policy configuration reviewed
-- [ ] Default profile is readonly
 - [ ] Rate limiting configured
 - [ ] Log rotation configured
 
 **Post-Deployment:**
 - [ ] Monitor authentication failures
 - [ ] Review audit logs daily
-- [ ] Check for policy violations
 - [ ] Verify rate limits working
 - [ ] Test credential rotation
 - [ ] Review access patterns
