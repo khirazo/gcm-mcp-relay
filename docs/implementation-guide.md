@@ -1,5 +1,8 @@
 # GCM MCP Relay - Implementation Guide
 
+> ⚠️ **DEPRECATED**: GCM 2.0.2+ supports API key authentication for the built-in MCP server, enabling direct
+> connection from AI coding agents without this relay. This relay is only needed for **GCM 2.0.1 and earlier**.
+
 This document consolidates the remaining design areas: Configuration Management, Audit Logging, Error Handling, Deployment Strategy, and Security Considerations.
 
 ## 1. Configuration Management System

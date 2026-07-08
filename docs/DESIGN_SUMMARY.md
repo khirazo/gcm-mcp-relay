@@ -1,9 +1,13 @@
 # GCM MCP Relay - Design Summary
 
-**Project**: GCM MCP Relay  
-**Version**: 1.0.0 (Phase 1)  
-**Date**: 2026-03-27  
+> ⚠️ **DEPRECATED**: GCM 2.0.2+ supports API key authentication for the built-in MCP server, enabling direct
+> connection from AI coding agents without this relay. This relay is only needed for **GCM 2.0.1 and earlier**.
+
+**Project**: GCM MCP Relay
+**Version**: 1.0.0 (Phase 1)
+**Date**: 2026-03-27
 **Status**: Design Complete - Ready for Implementation
+**Deprecation Notice**: Superseded by GCM 2.0.2+ API key authentication
 
 ## Executive Summary
 

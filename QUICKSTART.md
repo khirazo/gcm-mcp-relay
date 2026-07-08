@@ -1,5 +1,16 @@
 # Quick Start - Laptop Deployment with IBM Bob
 
+> ⚠️ **DEPRECATED — GCM 2.0.2+ Users**
+>
+> GCM 2.0.2 introduced **API key authentication** for the built-in MCP server, which allows AI coding agents
+> to connect directly — no relay required.
+> If you are running **GCM 2.0.2 or later**, follow the
+> [gcm-api-samples MCP Bob Setup Guide](https://github.com/khirazo/gcm-api-samples/blob/main/mcp_bob/README.md) instead.
+>
+> This relay (and this guide) applies only to **GCM 2.0.1 (and earlier)** deployments.
+
+---
+
 This guide helps you set up GCM MCP Relay on your laptop for use with IBM Bob MCP client via stdio connection.
 
 ## 📋 Prerequisites
@@ -301,7 +312,7 @@ ERROR - GCM API error: 404 - Not Found
 
 **Solutions:**
 1. **Verify GCM URL**: Should be `https://host:port/ibm/mcp/mcp`
-2. **Check GCM version**: Built-in MCP server requires GCM 2.0.1+
+2. **Check GCM version**: Built-in MCP server requires GCM 2.0.1+ (this relay targets GCM 2.0.1 only — for 2.0.2+ use direct API key authentication)
 3. **Verify MCP is enabled**: Contact GCM administrator
 
 ### OIDC Host Configuration

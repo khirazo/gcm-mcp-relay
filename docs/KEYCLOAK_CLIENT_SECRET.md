@@ -1,5 +1,9 @@
 # How to Obtain GCM_CLIENT_SECRET from Keycloak
 
+> ⚠️ **DEPRECATED**: This credential is only needed for the GCM MCP Relay, which is required for **GCM 2.0.1 and earlier** only.
+> For **GCM 2.0.2+**, use API key authentication and refer to the
+> [gcm-api-samples MCP Bob Setup Guide](https://github.com/khirazo/gcm-api-samples/blob/main/mcp_bob/README.md) instead.
+
 This guide explains how to retrieve the OAuth2 client secret (`GCM_CLIENT_SECRET`) from GCM's internal Keycloak instance.
 
 ## Prerequisites

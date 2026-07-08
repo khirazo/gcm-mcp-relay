@@ -1,5 +1,8 @@
 # GCM MCP Relay - Docker Deployment Design
 
+> ⚠️ **DEPRECATED**: GCM 2.0.2+ supports API key authentication for the built-in MCP server, enabling direct
+> connection from AI coding agents without this relay. This relay is only needed for **GCM 2.0.1 and earlier**.
+
 This document provides the complete Docker deployment design for GCM MCP Relay, based on the reference implementation at `C:\workspace\gcm-mcp-server`.
 
 ## 1. Docker Architecture Overview

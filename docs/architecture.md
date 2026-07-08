@@ -1,5 +1,8 @@
 # GCM MCP Relay - Architecture Design
 
+> ⚠️ **DEPRECATED**: GCM 2.0.2+ supports API key authentication for the built-in MCP server, enabling direct
+> connection from AI coding agents without this relay. This relay is only needed for **GCM 2.0.1 and earlier**.
+
 ## 1. Executive Summary
 
 GCM MCP Relay is a secure relay service that sits between AI coding agents and IBM Guardium Cryptography Manager (GCM) built-in MCP server. It simplifies authentication and provides comprehensive audit logging.

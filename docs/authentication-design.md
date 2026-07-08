@@ -1,5 +1,8 @@
 # GCM MCP Relay - Authentication & Authorization Design
 
+> ⚠️ **DEPRECATED**: GCM 2.0.2+ supports API key authentication for the built-in MCP server, enabling direct
+> connection from AI coding agents without this relay. This relay is only needed for **GCM 2.0.1 and earlier**.
+
 ## 1. Overview
 
 The authentication system manages credentials and tokens for connecting to the GCM built-in MCP server. It supports two operational modes with different authentication strategies.

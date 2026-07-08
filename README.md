@@ -1,10 +1,20 @@
 # GCM MCP Relay
 
+> ⚠️ **DEPRECATED — GCM 2.0.2+ Users**
+>
+> GCM 2.0.2 introduced **API key authentication** for the built-in MCP server, which allows AI coding agents to connect directly without this relay.
+> If you are running **GCM 2.0.2 or later**, use the direct connection method described in the
+> [gcm-api-samples MCP Bob Setup Guide](https://github.com/khirazo/gcm-api-samples/blob/main/mcp_bob/README.md) instead.
+>
+> This relay remains useful only for **GCM 2.0.1 (and earlier)** deployments where API key authentication is not available.
+
+---
+
 A secure, Docker-based relay service that sits between AI coding agents and IBM Guardium Cryptography Manager's built-in MCP server, providing simplified authentication and audit logging.
 
 ## Overview
 
-IBM Guardium Cryptography Manager (GCM) 2.0.1 includes a built-in MCP server with tools for managing cryptographic assets, certificates, and policies. However, direct access from AI agents is challenging due to:
+IBM Guardium Cryptography Manager (GCM) **2.0.1** includes a built-in MCP server with tools for managing cryptographic assets, certificates, and policies. However, direct access from AI agents is challenging due to:
 
 - Complex OAuth2/OIDC authentication flow
 
@@ -52,9 +62,11 @@ graph TB
 
 ### Prerequisites
 
+> **Note**: This relay is intended for **GCM 2.0.1 only**. For GCM 2.0.2+, see the [deprecation notice](#gcm-mcp-relay) above.
+
 - **Docker Desktop** (or Docker Engine + Docker Compose)
 - **IBM Bob** or other MCP client
-- **GCM credentials** (username, password, client secret)
+- **GCM 2.0.1** server with OAuth2/OIDC credentials (username, password, client secret)
 - **Git** (for cloning the repository)
 
 ### Setup (3 Steps)
